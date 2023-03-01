@@ -155,11 +155,11 @@ def highlight_start_date(s):
 def highlight_end_date(s):
     max_hour = s.hour
     if max_hour >= 21:
-        color = "green"
+        color = "red"
     elif 18 <= max_hour < 21:
         color = "yellow"
     else:
-        color = "red"
+        color = "green"
     return f"background-color: {color}"
 
 
