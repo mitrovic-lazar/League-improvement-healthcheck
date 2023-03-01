@@ -9,7 +9,7 @@ Potentially will be expanded to include:
     consistency of blocks
 consistency of review
 """
-total_calls = 0
+
 import datetime
 import json
 from PIL.Image import new
@@ -207,7 +207,6 @@ with placeholder.container():
 if st.button("Refresh"):
     placeholder.empty()
     main(placeholder)
-    st.write(total_calls)
 
 
 # if st.button("Clear All"):
