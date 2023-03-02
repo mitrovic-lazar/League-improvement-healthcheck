@@ -80,8 +80,8 @@ def get_last_week_matches():
 
     # this is cached
     matches.extend(get_match_data_from_to(week_start, week_end))
-    # this is not cached
-    matches.extend(get_match_data_from_to(today_start, datetime.datetime.now()))
+    # this is minuted cached
+    matches.extend(get_match_data_from_to(today_start, datetime.datetime.now().replace(second=0, microsecond=0)))
     return matches
 
 
