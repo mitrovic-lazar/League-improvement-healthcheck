@@ -14,6 +14,7 @@ import datetime
 import json
 from PIL.Image import new
 
+import pytz
 import matplotlib.pyplot as plt
 from numpy import place
 import pandas as pd
@@ -94,10 +95,10 @@ def create_matches_df(matches: list) -> pd.DataFrame:
         if match_data["info"]["queueId"] != 420:
             continue
         game_dictionary["start_date"] = datetime.datetime.fromtimestamp(
-            match_data["info"]["gameStartTimestamp"] / 1e3
+            match_data["info"]["gameStartTimestamp"] / 1e3, tz=pytz.timezone("Europe/Belgrade")
         )
         game_dictionary["end_date"] = datetime.datetime.fromtimestamp(
-            match_data["info"]["gameEndTimestamp"] / 1e3
+            match_data["info"]["gameEndTimestamp"] / 1e3, tz=pytz.timezone("Europe/Stockholm")
         )
         game_dictionary["game_duration"] = match_data["info"]["gameDuration"]
         for i in range(10):
@@ -122,7 +123,7 @@ def create_matches_df(matches: list) -> pd.DataFrame:
 
 
 def highlight_unique_champs(s):
-    if 0 < s < 3:
+    if 0 < s <= 3:
         color = "green"
     elif s < 5:
         color = "yellow"
@@ -163,6 +164,7 @@ def highlight_end_date(s):
     return f"background-color: {color}"
 
 
+
 def plot_timeline(df):
     fig, ax = plt.subplots()
     ax.broken_barh(
@@ -173,40 +175,72 @@ def plot_timeline(df):
     st.pyplot(fig)
 
 
-def main(st):
+def main(st, main_options, side_options):
     # If btn is pressed or Truetable
     matches = get_last_week_matches()
     df = create_matches_df(matches)
+    df['is_in_main'] = df['championName'].isin(main_options)
+    df['is_in_side'] = df['championName'].isin(side_options)
+    df['out_of_rotation'] = ~(df['championName'].isin(main_options) | df['championName'].isin(side_options))
     new_df = df.groupby(df.start_date.dt.date).agg(
-        Count=("start_date", "count"),
-        Min=("start_date", "min"),
-        Max=("start_date", "max"),
+        Daily_Games_Count=("start_date", "count"),
+        First_Game_Start_Time=("start_date", "min"),
+        Last_Game_Start_Time=("start_date", "max"),
         Unique_Champions=("championName", "nunique"),
+        Main_rotation=("is_in_main", "sum"),
+        Side_rotation=("is_in_side", "sum"),
+        Out_of_rotation=("out_of_rotation", "sum"),
     )
+    # get 
     new_df = new_df.sort_values(by="start_date", ascending=False)
     # just time in 'Min' and 'Max' columns
-    new_df["Min"] = new_df["Min"].dt.time
-    new_df["Max"] = new_df["Max"].dt.time
+    #new_df['Min'] = new_df['Min'].apply(truncate_miliseconds)
+    new_df["Last_Game_Start_Time"] = new_df["Last_Game_Start_Time"].dt.floor('Min').dt.time
+    new_df["First_Game_Start_Time"] = new_df["First_Game_Start_Time"].dt.floor('Min').dt.time
     colored_df = (
-        new_df.style.applymap(highlight_games_played, subset=["Count"])
+        new_df.style.applymap(highlight_games_played, subset=["Daily_Games_Count"])
         .applymap(highlight_unique_champs, subset=["Unique_Champions"])
-        .applymap(highlight_start_date, subset=["Min"])
-        .applymap(highlight_end_date, subset=["Max"])
+        .applymap(highlight_start_date, subset=["First_Game_Start_Time"])
+        .applymap(highlight_end_date, subset=["Last_Game_Start_Time"])
     )
-    st.subheader("Daily healthcheck")
-    st.table(colored_df)
+    return colored_df
 
     # st.subheader("Timeline")
     # plot_timeline(df)
 
+with st.sidebar:
+    all_adcs = ['Ziggs','Jhin','Kalista','Zeri', 'Caitlyn', 'Jhin', 'Kai\'Sa','Xayah','Varus','Lucian','Jinx','Ashe']
+    options = st.multiselect(
+        'Champions in your rotation',
+        all_adcs,
+        ['Zeri', 'Xayah','Kalista'])
+    side_options = st.multiselect(
+        'Champions in your situational rotation',
+        all_adcs,
+        ['Jhin','Ziggs'])
+
+    
+
+    set_options = set(options)
+    set_side_options = set(side_options)
+    if set_side_options & set_options:
+        st.warning("You can't have the same champion in both rotations")
+        st.write(f"Setting situational rotation to")
+        side_options = list(set_side_options - set_options)
+
+
 
 st.title("LoL improvment healthcheck")
+
 placeholder = st.empty()
 with placeholder.container():
-    main(placeholder)
+    colored_df = main(placeholder, options, side_options)
+
+st.subheader("Daily healthcheck")
+st.table(colored_df)
 if st.button("Refresh"):
     placeholder.empty()
-    main(placeholder)
+    colored_df = main(placeholder, options, side_options)
 
 
 # if st.button("Clear All"):
