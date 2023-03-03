@@ -128,7 +128,7 @@ def highlight_unique_champs(s):
     elif s < 5:
         color = "yellow"
     else:
-        color = "red"
+        color = "#990000"
     return f"background-color: {color}"
 
 
