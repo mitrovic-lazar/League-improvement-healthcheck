@@ -149,7 +149,7 @@ def highlight_start_date(s):
     elif 11 <= min_hour < 12:
         color = "yellow"
     else:
-        color = "red"
+        color = "#990000"
     return f"background-color: {color}"
 
 
